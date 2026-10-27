@@ -1,0 +1,9 @@
+version: 2
+
+sources:
+  - name: bts
+    database: AIRLINES
+    schema: L1_LANDING
+    tables:
+      - name: ON_TIME
+        identifier: BTS_ON_TIME_RAW_TYPED
