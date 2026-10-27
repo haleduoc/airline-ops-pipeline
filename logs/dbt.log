@@ -1,0 +1,137 @@
+==================== 2026-10-27T09:33:07.554701Z | 01a17cb4-d24b-7e12-9b05-7a03e2045fb9 ====================
+09:33:07.560955 [info ]: Installing dbt project and profile setup
+09:33:07.574599 [info ]: Info Created .vscode/extensions.json with dbt extension recommendation
+09:33:07.576950 [info ]: Success Project created successfully!
+09:33:07.577062 [info ]: Info Project name: jaffle_shop
+09:33:07.577097 [info ]: Info Project directory: jaffle_shop
+09:33:23.247567 [info ]: Info Skipping profile setup.
+09:33:23.247728 [info ]: Validating profile inputs, adapters, and connection
+
+09:33:23.248746 [info ]: dbt 2.0.8
+09:33:23.254148 [info ]: Started loading project
+09:33:23.296665 [info ]: Loading ~/.dbt/profiles.yml
+09:33:23.301218 [info ]: Finished loading project [  0.05s]
+09:33:23.303582 [error]: [IoError (dbt1001)]: Profile 'jaffle_shop' not found in profiles.yml
+  --> ./dbt_project.yml:3:10
+09:33:23.551600 [info ]: 
+==================== Execution Summary =====================
+Finished 'init' with 1 error [16.0s]
+==================== 2026-10-27T09:33:33.634701Z | 01a17cb5-3841-7d71-adaa-d1c60925131b ====================
+09:33:33.634984 [info ]: Installing dbt project and profile setup
+09:33:33.644903 [info ]: Info Created .vscode/extensions.json with dbt extension recommendation
+09:33:33.645058 [info ]: Success Project created successfully!
+09:33:33.645104 [info ]: Info Project name: jaffle_shop
+09:33:33.645137 [info ]: Info Project directory: jaffle_shop
+09:33:47.846082 [error]: [IoError (dbt1001)]: Failed to get profile selection: IO error: read interrupted
+09:33:48.122847 [info ]: 
+==================== Execution Summary =====================
+Finished 'init' with 1 error [14.5s]
+==================== 2026-10-27T09:34:05.232517Z | 01a17cb5-b3af-7603-a504-f4807dff68bb ====================
+09:34:05.232685 [info ]: Installing dbt project and profile setup
+09:34:05.240607 [info ]: Info Created .vscode/extensions.json with dbt extension recommendation
+09:34:05.240722 [info ]: Success Project created successfully!
+09:34:05.240767 [info ]: Info Project name: jaffle_shop
+09:34:05.240801 [info ]: Info Project directory: jaffle_shop
+09:34:06.970554 [info ]: Info Setting up your profile...
+09:34:06.971250 [info ]: Loading ~/.dbt/profiles.yml
+09:34:06.972541 [info ]: Info Creating new profile...
+09:34:40.481796 [error]: [IoError (dbt1001)]: Failed to get input for user: IO error: read interrupted
+09:34:40.711580 [info ]: 
+==================== Execution Summary =====================
+Finished 'init' with 1 error [35.5s]
+==================== 2026-10-27T09:34:46.890331Z | 01a17cb6-5668-76d1-aa0e-84dceb53019f ====================
+09:34:46.890520 [info ]: Installing dbt project and profile setup
+09:34:46.898765 [info ]: Info Created .vscode/extensions.json with dbt extension recommendation
+09:34:46.898888 [info ]: Success Project created successfully!
+09:34:46.898930 [info ]: Info Project name: jaffle_shop
+09:34:46.898959 [info ]: Info Project directory: jaffle_shop
+09:34:48.875458 [info ]: Info Setting up your profile...
+09:34:48.875962 [info ]: Loading ~/.dbt/profiles.yml
+09:34:48.876765 [info ]: Info Creating new profile...
+09:37:24.770468 [info ]: Success Profile written to /Users/kabe/.dbt/profiles.yml
+09:37:24.772121 [info ]: Validating profile inputs, adapters, and connection
+
+09:37:24.772206 [info ]: dbt 2.0.8
+09:37:24.772755 [info ]: Started loading project
+09:37:24.776598 [info ]: Loading ~/.dbt/profiles.yml
+09:37:24.799251 [info ]: Finished loading project [  0.03s]
+09:37:24.803725 [info ]: Started debugging
+09:37:24.805112 [info ]: Debugging profile: dev
+09:37:24.805290 [info ]: Debugging dbt version: 2.0.8
+09:37:24.805360 [info ]: Debugging platform: macos x86_64 (unix)
+09:37:24.806073 [info ]: Debugging adapter type: snowflake (remote)
+09:37:24.837536 [info ]: Debugging dependencies:
+  git: OK
+09:37:24.843852 [info ]: Debugging connection:
+  "account": "aqoteyc-ah12050",
+  "user": "leduocha",
+  "database": "AIRLINES",
+  "warehouse": "AIRLINES_INGEST_WH",
+  "schema": "L2_PROCESSING",
+  "role": "ACCOUNTADMIN"
+09:37:24.861669 [debug]: Snowflake driver resolved: snowflake 0.21.0.dev+dbt0.21.18
+09:37:27.128057 [debug]: borrow_tlocal_connection() took 2.272861082s
+09:37:27.139273 [debug]: create_debug_span(...).entered() took 1.098399ms
+09:37:27.256446 [debug]: stmt.execute() (submit+wait_for_completion, returns reader) took 116.222495ms
+09:37:27.256498 [debug]: reader.schema() took 588ns
+09:37:27.263277 [debug]: do_execute(conn) (closure: stmt.execute + schema + batch loop) took 123.953678ms
+09:37:27.268365 [debug]: concat_batches + normalize_result_column_names took 5.034266ms
+09:37:27.270496 [debug]: record_current_span_status_from_attrs took 2.094042ms
+09:37:27.271123 [debug]: Query executed on node unknown:
+select 1 as id
+09:37:27.271507 [debug]: drop(query_span_guard) (span exit/export) took 987.81µs
+09:37:27.278742 [debug]: adapter.execute() (full call, incl. adbc_execute_with_options) took 150.622271ms
+09:37:27.279623 [info ]: Debugging connection test: OK (2.4s)
+09:37:27.282255 [info ]: Debugged All checks passed!
+09:37:27.283018 [info ]: Finished debugging [  2.48s]
+09:37:27.288936 [info ]: New version available 2.0.9 (run `dbt system update`)
+09:37:27.576240 [info ]: 
+==================== Execution Summary =====================
+Finished 'init' successfully for target 'dev' [2m 41s]
+==================== 2026-10-27T09:41:04.496427Z | 01a17cbc-1954-7fd1-bb90-dc4d661e5a84 ====================
+09:41:04.504549 [info ]: Installing dbt project and profile setup
+09:41:04.521048 [info ]: Info Created .vscode/extensions.json with dbt extension recommendation
+09:41:04.525091 [info ]: Success Project created successfully!
+09:41:04.525592 [info ]: Info Project name: jaffle_shop
+09:41:04.525687 [info ]: Info Project directory: jaffle_shop
+09:43:41.784661 [info ]: Info Using existing profile 'jaffle_shop'
+09:43:41.787155 [info ]: Success Set profile 'jaffle_shop' in dbt_project.yml
+09:43:41.788041 [info ]: Validating profile inputs, adapters, and connection
+
+09:43:41.789056 [info ]: dbt 2.0.8
+09:43:41.797805 [info ]: Started loading project
+09:43:41.852256 [info ]: Loading ~/.dbt/profiles.yml
+09:43:41.877525 [info ]: Finished loading project [  0.08s]
+09:43:41.884949 [info ]: Started debugging
+09:43:41.886077 [info ]: Debugging profile: dev
+09:43:41.886112 [info ]: Debugging dbt version: 2.0.8
+09:43:41.886434 [info ]: Debugging platform: macos x86_64 (unix)
+09:43:41.887940 [info ]: Debugging adapter type: snowflake (remote)
+09:43:41.911941 [info ]: Debugging dependencies:
+  git: OK
+09:43:41.915976 [info ]: Debugging connection:
+  "account": "aqoteyc-ah12050",
+  "user": "leduocha",
+  "database": "AIRLINES",
+  "warehouse": "AIRLINES_INGEST_WH",
+  "schema": "L2_PROCESSING",
+  "role": "ACCOUNTADMIN"
+09:43:41.928746 [debug]: Snowflake driver resolved: snowflake 0.21.0.dev+dbt0.21.18
+09:43:43.387392 [debug]: borrow_tlocal_connection() took 1.463162016s
+09:43:43.404406 [debug]: create_debug_span(...).entered() took 1.282658ms
+09:43:43.516155 [debug]: stmt.execute() (submit+wait_for_completion, returns reader) took 109.989978ms
+09:43:43.516369 [debug]: reader.schema() took 990ns
+09:43:43.524856 [debug]: do_execute(conn) (closure: stmt.execute + schema + batch loop) took 120.382484ms
+09:43:43.529460 [debug]: concat_batches + normalize_result_column_names took 4.553733ms
+09:43:43.531452 [debug]: record_current_span_status_from_attrs took 1.950876ms
+09:43:43.532154 [debug]: Query executed on node unknown:
+select 1 as id
+09:43:43.532567 [debug]: drop(query_span_guard) (span exit/export) took 1.080578ms
+09:43:43.539193 [debug]: adapter.execute() (full call, incl. adbc_execute_with_options) took 151.719328ms
+09:43:43.539914 [info ]: Debugging connection test: OK (1.6s)
+09:43:43.542835 [info ]: Debugged All checks passed!
+09:43:43.543813 [info ]: Finished debugging [  1.66s]
+09:43:43.550900 [info ]: New version available 2.0.9 (run `dbt system update`)
+09:43:43.880091 [info ]: 
+==================== Execution Summary =====================
+Finished 'init' successfully for target 'dev' [2m 39s]

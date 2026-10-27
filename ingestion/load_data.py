@@ -104,12 +104,24 @@ def main():
         cursor = connection.cursor()
         cursor.execute(f"CREATE TABLE IF NOT EXISTS {target} (\n    {definitions}\n)")
         cursor.execute(f"DESCRIBE TABLE {target}")
-        existing = [row[0] for row in cursor.fetchall()]
+        description = cursor.fetchall()
+        existing = [row[0] for row in description]
         if existing != header:
             raise ValueError(
                 f"Target table columns do not match the July 2025 CSV header: {target}. "
                 "No data was staged or copied."
             )
+
+        # Preserve empty strings in the VARCHAR landing table. Typed targets need
+        # empty CSV fields converted to NULL before Snowflake casts them to numbers.
+        empty_field_as_null = any(
+            str(row[1]).upper().startswith("NUMBER") for row in description
+        )
+        null_if = (
+            "('', '__BTS_RAW_NULL_SENTINEL__')"
+            if empty_field_as_null
+            else "('__BTS_RAW_NULL_SENTINEL__')"
+        )
 
         cursor.execute(
             f"PUT 'file://{CSV_PATH}' {STAGE_PATH} "
@@ -119,9 +131,10 @@ def main():
             f"COPY INTO {target} ({columns}) FROM {STAGE_PATH} "
             "FILES=('07_2025.csv') "
             "FILE_FORMAT=(TYPE=CSV SKIP_HEADER=1 "
-            "FIELD_OPTIONALLY_ENCLOSED_BY='\"' EMPTY_FIELD_AS_NULL=FALSE "
+            "FIELD_OPTIONALLY_ENCLOSED_BY='\"' "
+            f"EMPTY_FIELD_AS_NULL={'TRUE' if empty_field_as_null else 'FALSE'} "
             "ERROR_ON_COLUMN_COUNT_MISMATCH=FALSE "
-            "NULL_IF=('__BTS_RAW_NULL_SENTINEL__')) "
+            f"NULL_IF={null_if}) "
             "ON_ERROR=ABORT_STATEMENT PURGE=TRUE"
         )
         results = cursor.fetchall()
