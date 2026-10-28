@@ -1,0 +1,25 @@
+version: 2
+
+models:
+  - name: mart_monthly_airline_performance
+    description: Monthly airline KPIs; counts are staging rows, not deduplicated flights.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [year, month, reporting_airline]
+    columns:
+      - name: year
+        data_tests:
+          - not_null
+      - name: month
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+      - name: reporting_airline
+        data_tests:
+          - not_null
+      - name: staging_row_count
+        data_tests:
+          - not_null

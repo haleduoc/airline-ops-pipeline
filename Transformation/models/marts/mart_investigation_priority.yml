@@ -1,0 +1,57 @@
+version: 2
+
+models:
+  - name: mart_investigation_priority
+    description: Exploratory monthly KPI rankings by entity type; counts are staging rows, not deduplicated flights.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - year
+              - month
+              - entity_type
+              - entity_key
+              - kpi_name
+    columns:
+      - name: year
+        data_tests:
+          - not_null
+      - name: month
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+      - name: entity_type
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [airline, origin_airport, destination_airport, route]
+      - name: entity_key
+        data_tests:
+          - not_null
+      - name: kpi_name
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - cancellation_rate
+                  - diversion_rate
+                  - arrival_delay_rate
+                  - on_time_rate
+                  - total_arrival_delay_minutes
+                  - carrier_delay_minutes
+                  - weather_delay_minutes
+                  - nas_delay_minutes
+                  - security_delay_minutes
+                  - late_aircraft_delay_minutes
+      - name: kpi_unit
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [percentage_points, minutes]
+      - name: staging_row_count
+        data_tests:
+          - not_null

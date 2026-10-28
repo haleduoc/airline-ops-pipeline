@@ -1,0 +1,28 @@
+version: 2
+
+models:
+  - name: mart_monthly_departure_time_performance
+    description: Monthly arrival and disruption KPIs by scheduled departure time block and route dimensions; counts are staging rows.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - year
+              - month
+              - scheduled_departure_time_block
+              - reporting_airline
+              - origin_airport_code
+              - destination_airport_code
+    columns:
+      - name: year
+        data_tests:
+          - not_null
+      - name: month
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+      - name: staging_row_count
+        data_tests:
+          - not_null
