@@ -40,6 +40,7 @@ models:
                   - cancellation_rate
                   - diversion_rate
                   - arrival_delay_rate
+                  - on_time_rate
                   - total_arrival_delay_minutes
                   - carrier_delay_minutes
                   - weather_delay_minutes

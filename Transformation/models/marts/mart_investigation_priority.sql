@@ -1,6 +1,6 @@
 -- Grain: one row per year, month, entity type, entity key, and KPI.
--- Counts represent staging rows, not deduplicated unique flights. Rankings are exploratory;
--- no minimum-volume or KPI threshold has been defined by the business requirements.
+-- Counts are staging rows, not deduplicated unique flights. Rankings remain exploratory
+-- until minimum-volume and KPI-change thresholds are approved.
 with flights as (
     select
         year,
@@ -8,9 +8,10 @@ with flights as (
         reporting_airline,
         origin_airport_code,
         destination_airport_code,
-        cancelled,
-        diverted,
-        arrival_delay_15_minutes_or_more,
+        try_to_number(to_varchar(cancelled)) as cancelled,
+        try_to_number(to_varchar(diverted)) as diverted,
+        try_to_number(to_varchar(arrival_delay_15_minutes_or_more))
+            as arrival_delay_15_minutes_or_more,
         arrival_delay_minutes,
         carrier_delay_minutes,
         weather_delay_minutes,
@@ -31,7 +32,9 @@ monthly_entities as (
         cast(null as varchar) as destination_airport_code,
         count(*) as staging_row_count,
         sum(case when cancelled = 1 then 1 else 0 end) as cancelled_rows,
+        sum(case when cancelled is null then 1 else 0 end) as cancelled_status_unknown_rows,
         sum(case when diverted = 1 then 1 else 0 end) as diverted_rows,
+        sum(case when diverted is null then 1 else 0 end) as diverted_status_unknown_rows,
         sum(case
             when cancelled = 0 and diverted = 0
                 and arrival_delay_15_minutes_or_more in (0, 1)
@@ -42,12 +45,22 @@ monthly_entities as (
                 and arrival_delay_15_minutes_or_more = 1
             then 1 else 0
         end) as delayed_arrival_rows,
+        sum(case
+            when cancelled = 0 and diverted = 0
+                and arrival_delay_15_minutes_or_more = 0
+            then 1 else 0
+        end) as on_time_arrival_rows,
         sum(case when cancelled = 0 then arrival_delay_minutes end) as total_arrival_delay_minutes,
-        sum(coalesce(carrier_delay_minutes, 0)) as carrier_delay_minutes,
-        sum(coalesce(weather_delay_minutes, 0)) as weather_delay_minutes,
-        sum(coalesce(nas_delay_minutes, 0)) as nas_delay_minutes,
-        sum(coalesce(security_delay_minutes, 0)) as security_delay_minutes,
-        sum(coalesce(late_aircraft_delay_minutes, 0)) as late_aircraft_delay_minutes
+        sum(case when cancelled = 0 and diverted = 0 and arrival_delay_15_minutes_or_more = 1
+            then carrier_delay_minutes end) as carrier_delay_minutes,
+        sum(case when cancelled = 0 and diverted = 0 and arrival_delay_15_minutes_or_more = 1
+            then weather_delay_minutes end) as weather_delay_minutes,
+        sum(case when cancelled = 0 and diverted = 0 and arrival_delay_15_minutes_or_more = 1
+            then nas_delay_minutes end) as nas_delay_minutes,
+        sum(case when cancelled = 0 and diverted = 0 and arrival_delay_15_minutes_or_more = 1
+            then security_delay_minutes end) as security_delay_minutes,
+        sum(case when cancelled = 0 and diverted = 0 and arrival_delay_15_minutes_or_more = 1
+            then late_aircraft_delay_minutes end) as late_aircraft_delay_minutes
     from flights
     where reporting_airline is not null
     group by year, month, reporting_airline
@@ -64,7 +77,9 @@ monthly_entities as (
         cast(null as varchar) as destination_airport_code,
         count(*) as staging_row_count,
         sum(case when cancelled = 1 then 1 else 0 end) as cancelled_rows,
+        sum(case when cancelled is null then 1 else 0 end) as cancelled_status_unknown_rows,
         sum(case when diverted = 1 then 1 else 0 end) as diverted_rows,
+        sum(case when diverted is null then 1 else 0 end) as diverted_status_unknown_rows,
         sum(case
             when cancelled = 0 and diverted = 0
                 and arrival_delay_15_minutes_or_more in (0, 1)
@@ -75,12 +90,22 @@ monthly_entities as (
                 and arrival_delay_15_minutes_or_more = 1
             then 1 else 0
         end) as delayed_arrival_rows,
+        sum(case
+            when cancelled = 0 and diverted = 0
+                and arrival_delay_15_minutes_or_more = 0
+            then 1 else 0
+        end) as on_time_arrival_rows,
         sum(case when cancelled = 0 then arrival_delay_minutes end) as total_arrival_delay_minutes,
-        sum(coalesce(carrier_delay_minutes, 0)) as carrier_delay_minutes,
-        sum(coalesce(weather_delay_minutes, 0)) as weather_delay_minutes,
-        sum(coalesce(nas_delay_minutes, 0)) as nas_delay_minutes,
-        sum(coalesce(security_delay_minutes, 0)) as security_delay_minutes,
-        sum(coalesce(late_aircraft_delay_minutes, 0)) as late_aircraft_delay_minutes
+        sum(case when cancelled = 0 and diverted = 0 and arrival_delay_15_minutes_or_more = 1
+            then carrier_delay_minutes end) as carrier_delay_minutes,
+        sum(case when cancelled = 0 and diverted = 0 and arrival_delay_15_minutes_or_more = 1
+            then weather_delay_minutes end) as weather_delay_minutes,
+        sum(case when cancelled = 0 and diverted = 0 and arrival_delay_15_minutes_or_more = 1
+            then nas_delay_minutes end) as nas_delay_minutes,
+        sum(case when cancelled = 0 and diverted = 0 and arrival_delay_15_minutes_or_more = 1
+            then security_delay_minutes end) as security_delay_minutes,
+        sum(case when cancelled = 0 and diverted = 0 and arrival_delay_15_minutes_or_more = 1
+            then late_aircraft_delay_minutes end) as late_aircraft_delay_minutes
     from flights
     where origin_airport_code is not null
     group by year, month, origin_airport_code
@@ -97,7 +122,9 @@ monthly_entities as (
         destination_airport_code,
         count(*) as staging_row_count,
         sum(case when cancelled = 1 then 1 else 0 end) as cancelled_rows,
+        sum(case when cancelled is null then 1 else 0 end) as cancelled_status_unknown_rows,
         sum(case when diverted = 1 then 1 else 0 end) as diverted_rows,
+        sum(case when diverted is null then 1 else 0 end) as diverted_status_unknown_rows,
         sum(case
             when cancelled = 0 and diverted = 0
                 and arrival_delay_15_minutes_or_more in (0, 1)
@@ -108,12 +135,22 @@ monthly_entities as (
                 and arrival_delay_15_minutes_or_more = 1
             then 1 else 0
         end) as delayed_arrival_rows,
+        sum(case
+            when cancelled = 0 and diverted = 0
+                and arrival_delay_15_minutes_or_more = 0
+            then 1 else 0
+        end) as on_time_arrival_rows,
         sum(case when cancelled = 0 then arrival_delay_minutes end) as total_arrival_delay_minutes,
-        sum(coalesce(carrier_delay_minutes, 0)) as carrier_delay_minutes,
-        sum(coalesce(weather_delay_minutes, 0)) as weather_delay_minutes,
-        sum(coalesce(nas_delay_minutes, 0)) as nas_delay_minutes,
-        sum(coalesce(security_delay_minutes, 0)) as security_delay_minutes,
-        sum(coalesce(late_aircraft_delay_minutes, 0)) as late_aircraft_delay_minutes
+        sum(case when cancelled = 0 and diverted = 0 and arrival_delay_15_minutes_or_more = 1
+            then carrier_delay_minutes end) as carrier_delay_minutes,
+        sum(case when cancelled = 0 and diverted = 0 and arrival_delay_15_minutes_or_more = 1
+            then weather_delay_minutes end) as weather_delay_minutes,
+        sum(case when cancelled = 0 and diverted = 0 and arrival_delay_15_minutes_or_more = 1
+            then nas_delay_minutes end) as nas_delay_minutes,
+        sum(case when cancelled = 0 and diverted = 0 and arrival_delay_15_minutes_or_more = 1
+            then security_delay_minutes end) as security_delay_minutes,
+        sum(case when cancelled = 0 and diverted = 0 and arrival_delay_15_minutes_or_more = 1
+            then late_aircraft_delay_minutes end) as late_aircraft_delay_minutes
     from flights
     where destination_airport_code is not null
     group by year, month, destination_airport_code
@@ -130,7 +167,9 @@ monthly_entities as (
         destination_airport_code,
         count(*) as staging_row_count,
         sum(case when cancelled = 1 then 1 else 0 end) as cancelled_rows,
+        sum(case when cancelled is null then 1 else 0 end) as cancelled_status_unknown_rows,
         sum(case when diverted = 1 then 1 else 0 end) as diverted_rows,
+        sum(case when diverted is null then 1 else 0 end) as diverted_status_unknown_rows,
         sum(case
             when cancelled = 0 and diverted = 0
                 and arrival_delay_15_minutes_or_more in (0, 1)
@@ -141,12 +180,22 @@ monthly_entities as (
                 and arrival_delay_15_minutes_or_more = 1
             then 1 else 0
         end) as delayed_arrival_rows,
+        sum(case
+            when cancelled = 0 and diverted = 0
+                and arrival_delay_15_minutes_or_more = 0
+            then 1 else 0
+        end) as on_time_arrival_rows,
         sum(case when cancelled = 0 then arrival_delay_minutes end) as total_arrival_delay_minutes,
-        sum(coalesce(carrier_delay_minutes, 0)) as carrier_delay_minutes,
-        sum(coalesce(weather_delay_minutes, 0)) as weather_delay_minutes,
-        sum(coalesce(nas_delay_minutes, 0)) as nas_delay_minutes,
-        sum(coalesce(security_delay_minutes, 0)) as security_delay_minutes,
-        sum(coalesce(late_aircraft_delay_minutes, 0)) as late_aircraft_delay_minutes
+        sum(case when cancelled = 0 and diverted = 0 and arrival_delay_15_minutes_or_more = 1
+            then carrier_delay_minutes end) as carrier_delay_minutes,
+        sum(case when cancelled = 0 and diverted = 0 and arrival_delay_15_minutes_or_more = 1
+            then weather_delay_minutes end) as weather_delay_minutes,
+        sum(case when cancelled = 0 and diverted = 0 and arrival_delay_15_minutes_or_more = 1
+            then nas_delay_minutes end) as nas_delay_minutes,
+        sum(case when cancelled = 0 and diverted = 0 and arrival_delay_15_minutes_or_more = 1
+            then security_delay_minutes end) as security_delay_minutes,
+        sum(case when cancelled = 0 and diverted = 0 and arrival_delay_15_minutes_or_more = 1
+            then late_aircraft_delay_minutes end) as late_aircraft_delay_minutes
     from flights
     where origin_airport_code is not null
         and destination_airport_code is not null
@@ -165,14 +214,18 @@ entity_kpis as (
         staging_row_count,
         'cancellation_rate' as kpi_name,
         'percentage_points' as kpi_unit,
-        cancelled_rows / nullif(staging_row_count, 0)::float * 100 as kpi_value
+        case when cancelled_status_unknown_rows = 0
+            then cancelled_rows / nullif(staging_row_count, 0)::float * 100
+        end as kpi_value
     from monthly_entities
 
     union all
 
     select year, month, entity_type, entity_key, reporting_airline, origin_airport_code, destination_airport_code,
         staging_row_count, 'diversion_rate', 'percentage_points',
-        diverted_rows / nullif(staging_row_count, 0)::float * 100
+        case when diverted_status_unknown_rows = 0
+            then diverted_rows / nullif(staging_row_count, 0)::float * 100
+        end
     from monthly_entities
 
     union all
@@ -180,6 +233,13 @@ entity_kpis as (
     select year, month, entity_type, entity_key, reporting_airline, origin_airport_code, destination_airport_code,
         staging_row_count, 'arrival_delay_rate', 'percentage_points',
         delayed_arrival_rows / nullif(eligible_arrival_rows, 0)::float * 100
+    from monthly_entities
+
+    union all
+
+    select year, month, entity_type, entity_key, reporting_airline, origin_airport_code, destination_airport_code,
+        staging_row_count, 'on_time_rate', 'percentage_points',
+        on_time_arrival_rows / nullif(eligible_arrival_rows, 0)::float * 100
     from monthly_entities
 
     union all
@@ -279,14 +339,20 @@ select
     year_over_year_change,
     case when kpi_value is not null then rank() over (
         partition by year, month, entity_type, kpi_name
-        order by kpi_value desc
+        order by
+            case when kpi_name = 'on_time_rate' then kpi_value end asc nulls last,
+            case when kpi_name <> 'on_time_rate' then kpi_value end desc nulls last
     ) end as current_value_rank,
     case when month_over_month_change is not null then rank() over (
         partition by year, month, entity_type, kpi_name
-        order by month_over_month_change desc nulls last
+        order by
+            case when kpi_name = 'on_time_rate' then month_over_month_change end asc nulls last,
+            case when kpi_name <> 'on_time_rate' then month_over_month_change end desc nulls last
     ) end as month_over_month_change_rank,
     case when year_over_year_change is not null then rank() over (
         partition by year, month, entity_type, kpi_name
-        order by year_over_year_change desc nulls last
+        order by
+            case when kpi_name = 'on_time_rate' then year_over_year_change end asc nulls last,
+            case when kpi_name <> 'on_time_rate' then year_over_year_change end desc nulls last
     ) end as year_over_year_change_rank
 from kpi_changes

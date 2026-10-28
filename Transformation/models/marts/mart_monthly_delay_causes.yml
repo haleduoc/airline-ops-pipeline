@@ -2,7 +2,7 @@ version: 2
 
 models:
   - name: mart_monthly_delay_causes
-    description: Monthly BTS-reported delay cause contributions by airline, origin, and destination.
+    description: BTS-reported cause minutes for valid delayed arrivals; counts are staging rows.
     data_tests:
       - dbt_utils.unique_combination_of_columns:
           arguments:
@@ -29,5 +29,8 @@ models:
         data_tests:
           - not_null
       - name: destination_airport_code
+        data_tests:
+          - not_null
+      - name: delayed_arrival_staging_rows
         data_tests:
           - not_null
