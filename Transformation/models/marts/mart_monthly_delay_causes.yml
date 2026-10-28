@@ -1,0 +1,33 @@
+version: 2
+
+models:
+  - name: mart_monthly_delay_causes
+    description: Monthly BTS-reported delay cause contributions by airline, origin, and destination.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - year
+              - month
+              - reporting_airline
+              - origin_airport_code
+              - destination_airport_code
+    columns:
+      - name: year
+        data_tests:
+          - not_null
+      - name: month
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+      - name: reporting_airline
+        data_tests:
+          - not_null
+      - name: origin_airport_code
+        data_tests:
+          - not_null
+      - name: destination_airport_code
+        data_tests:
+          - not_null
