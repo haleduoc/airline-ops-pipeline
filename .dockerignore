@@ -1,0 +1,16 @@
+.git
+.DS_Store
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+**/profiles.yml
+**/.user.yml
+venv/
+data/
+**/dbt_packages/
+**/target/
+**/logs/
+**/__pycache__/
+**/*.py[cod]

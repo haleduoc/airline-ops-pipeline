@@ -21,3 +21,4 @@ models:
       +schema: L2_PROCESSING
     marts:
       +materialized: table
+      +schema: L3_PERFORMANCE
