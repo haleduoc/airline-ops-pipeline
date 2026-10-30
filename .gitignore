@@ -1,4 +1,5 @@
 venv
 .env
+airflow/.env
 data
 .DS_Store
