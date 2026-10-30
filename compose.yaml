@@ -1,0 +1,130 @@
+name: airline-ops
+
+x-airflow-image: &airflow-image
+  image: airline-ops-airflow:local
+  build:
+    context: .
+    args:
+      AIRFLOW_VERSION: "3.3.2"
+
+x-airflow-environment: &airflow-environment
+  AIRFLOW__CORE__EXECUTOR: LocalExecutor
+  AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+  AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+  AIRFLOW__CORE__PARALLELISM: "2"
+  AIRFLOW__CORE__MAX_ACTIVE_TASKS_PER_DAG: "2"
+  AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-api-server:8080/execution/
+  AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg://airflow:${AIRFLOW_DB_PASSWORD:?Set AIRFLOW_DB_PASSWORD in the ignored root .env}@postgres/airflow
+
+x-airflow-volumes: &airflow-volumes
+  - ./airflow/dags:/opt/airflow/dags:ro
+  - airflow-logs:/opt/airflow/logs
+
+services:
+  postgres:
+    image: postgres:17.6-alpine
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: ${AIRFLOW_DB_PASSWORD:?Set AIRFLOW_DB_PASSWORD in the ignored root .env}
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow -d airflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  airflow-init:
+    <<: *airflow-image
+    command: airflow db migrate
+    environment:
+      <<: *airflow-environment
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  airflow-api-server:
+    <<: *airflow-image
+    command:
+      - bash
+      - -c
+      - |
+        python -c 'import json, os, pathlib; pathlib.Path("/opt/airflow/simple_auth_manager_passwords.json.generated").write_text(json.dumps({"admin": os.environ["AIRFLOW_UI_PASSWORD"]}))'
+        exec airflow api-server --host 0.0.0.0
+    environment:
+      <<: *airflow-environment
+      AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW_API_JWT_SECRET:?Set AIRFLOW_API_JWT_SECRET in the ignored root .env}
+      AIRFLOW__API__SECRET_KEY: ${AIRFLOW_API_SECRET_KEY:?Set AIRFLOW_API_SECRET_KEY in the ignored root .env}
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS: admin:admin
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE: /opt/airflow/simple_auth_manager_passwords.json.generated
+    env_file:
+      - ./airflow/.env
+    volumes: *airflow-volumes
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-dag-processor:
+    <<: *airflow-image
+    command: airflow dag-processor
+    environment:
+      <<: *airflow-environment
+    volumes: *airflow-volumes
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-scheduler:
+    <<: *airflow-image
+    command: airflow scheduler
+    env_file:
+      - .env
+    environment:
+      <<: *airflow-environment
+      AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW_API_JWT_SECRET:?Set AIRFLOW_API_JWT_SECRET in the ignored root .env}
+      AIRFLOW__API__SECRET_KEY: ${AIRFLOW_API_SECRET_KEY:?Set AIRFLOW_API_SECRET_KEY in the ignored root .env}
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags:ro
+      - airflow-logs:/opt/airflow/logs
+      - ./ingestion:/workspace/ingestion:ro
+      - ./data/Raw:/workspace/data/Raw:ro
+      - ./Transformation/models:/workspace/Transformation/models:ro
+      - ./Transformation/macros:/workspace/Transformation/macros:ro
+      - ./Transformation/dbt_project.yml:/workspace/Transformation/dbt_project.yml:ro
+      - ./Transformation/packages.yml:/workspace/Transformation/packages.yml:ro
+      - ./Transformation/package-lock.yml:/workspace/Transformation/package-lock.yml:ro
+      - ./Transformation/profiles.yml:/workspace/Transformation/profiles.yml:ro
+      - ./.env:/workspace/.env:ro
+      - dbt-target:/workspace/Transformation/target
+      - dbt-logs:/workspace/Transformation/logs
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-auto-trigger:
+    <<: *airflow-image
+    command: python /opt/airflow/auto_trigger.py
+    environment:
+      <<: *airflow-environment
+      AIRLINE_OPS_CSV_DIR: /workspace/data/Raw
+      AIRLINE_OPS_TRIGGER_STATE: /opt/airflow/logs/auto-trigger-state.json
+      AIRLINE_OPS_POLL_SECONDS: "10"
+      AIRLINE_OPS_STABLE_SECONDS: "30"
+    volumes:
+      - ./airflow/auto_trigger.py:/opt/airflow/auto_trigger.py:ro
+      - ./data/Raw:/workspace/data/Raw:ro
+      - airflow-logs:/opt/airflow/logs
+    restart: unless-stopped
+    depends_on:
+      airflow-scheduler:
+        condition: service_started
+
+volumes:
+  airflow-logs:
+  dbt-logs:
+  dbt-target:
+  postgres-data:
