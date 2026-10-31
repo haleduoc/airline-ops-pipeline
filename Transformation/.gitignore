@@ -4,3 +4,4 @@ logs/
 target/
 .env
 profiles.yml
+.user.yml
