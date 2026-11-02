@@ -38,7 +38,13 @@ services:
 
   airflow-init:
     <<: *airflow-image
-    command: airflow db migrate
+    command:
+      - bash
+      - -c
+      - >-
+        airflow db migrate &&
+        airflow pools set airline_ops_snowflake_write 1
+        "Serialize Snowflake ingestion writes"
     environment:
       <<: *airflow-environment
     depends_on:

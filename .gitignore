@@ -1,9 +1,10 @@
 venv
 .env
 airflow/.env
-data
+/data/Raw/
 .DS_Store
 __pycache__/
 *.py[cod]
 logs/
 .taste-skill
+.github
