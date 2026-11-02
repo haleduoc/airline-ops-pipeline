@@ -27,6 +27,21 @@ def quote_string(value):
     return "'" + value.replace("'", "''") + "'"
 
 
+def build_merge_statement(target, temp_table, header):
+    matches = " AND ".join(
+        f"EQUAL_NULL(t.{quote_identifier(name)}, s.{quote_identifier(name)})"
+        for name in header
+    )
+    insert_columns = ", ".join(quote_identifier(name) for name in header)
+    source_columns = ", ".join(f"s.{quote_identifier(name)}" for name in header)
+    return (
+        f"MERGE INTO {target} t "
+        f"USING (SELECT DISTINCT {insert_columns} FROM {temp_table}) s "
+        f"ON {matches} "
+        f"WHEN NOT MATCHED THEN INSERT ({insert_columns}) VALUES ({source_columns})"
+    )
+
+
 def sha256_file(path):
     digest = hashlib.sha256()
     with path.open("rb") as source:
@@ -70,6 +85,44 @@ def validate_csv_rows(csv_path, expected_columns):
     return validated_rows
 
 
+def merge_and_update_audit(
+    connection,
+    cursor,
+    audit_sql,
+    audit_params,
+    merge_sql,
+):
+    """Apply data and its fingerprint atomically after staging has been validated."""
+    transaction_open = False
+    try:
+        cursor.execute("BEGIN")
+        transaction_open = True
+        cursor.execute(merge_sql)
+        merge_rows = cursor.fetchall()
+        merge_description = cursor.description
+        cursor.execute(audit_sql, audit_params)
+        try:
+            connection.commit()
+        except Exception as error:
+            error.add_note(
+                "connection.commit() failed; rollback will be attempted, but the final "
+                "Snowflake commit outcome may be uncertain if the connection was lost."
+            )
+            raise
+        transaction_open = False
+        return merge_rows, merge_description
+    except Exception as error:
+        if transaction_open:
+            try:
+                connection.rollback()
+            except Exception as rollback_error:
+                # Keep the operation/commit error as the exception Airflow sees.
+                error.add_note(
+                    f"Rollback also failed ({type(rollback_error).__name__})."
+                )
+        raise
+
+
 def required_config():
     required = [
         "SNOWFLAKE_ACCOUNT",
@@ -97,6 +150,9 @@ def required_config():
 
 def load_csv(csv_path, database, schema, table, connect_args, force=False):
     header = read_header(csv_path)
+    validated_rows = validate_csv_rows(csv_path, len(header))
+    if validated_rows == 0:
+        raise ValueError(f"CSV has a header but no data rows: {csv_path.name}")
     column_signature = hashlib.sha256("\x1f".join(header).encode("utf-8")).hexdigest()
     file_signature = sha256_file(csv_path)
     target = ".".join(map(quote_identifier, (database, schema, table)))
@@ -111,8 +167,10 @@ def load_csv(csv_path, database, schema, table, connect_args, force=False):
         **connect_args,
         "database": database,
         "schema": schema,
+        "autocommit": False,
     }
     connection = snowflake.connector.connect(**connect_args)
+    cursor = None
     try:
         cursor = connection.cursor()
         print(f"Checking Snowflake target: {target}", flush=True)
@@ -148,10 +206,6 @@ def load_csv(csv_path, database, schema, table, connect_args, force=False):
             return
         if force:
             print(f"Force reload enabled for {csv_path.name}.", flush=True)
-
-        phase_started = time.perf_counter()
-        validated_rows = validate_csv_rows(csv_path, len(header))
-        print(f"CSV validation took {time.perf_counter() - phase_started:.1f}s", flush=True)
 
         if new_columns:
             print(f"Adding {len(new_columns)} new CSV columns to {target}.", flush=True)
@@ -207,30 +261,8 @@ def load_csv(csv_path, database, schema, table, connect_args, force=False):
             )
         print(f"Temporary COPY took {time.perf_counter() - phase_started:.1f}s", flush=True)
 
-        matches = " AND ".join(
-            f"EQUAL_NULL(t.{quote_identifier(name)}, s.{quote_identifier(name)})"
-            for name in header
-        )
-        insert_columns = ", ".join(quote_identifier(name) for name in header)
-        source_columns = ", ".join(f"s.{quote_identifier(name)}" for name in header)
-        cursor.execute(
-            f"MERGE INTO {target} t "
-            f"USING (SELECT DISTINCT {insert_columns} FROM {temp_table}) s "
-            f"ON {matches} "
-            f"WHEN NOT MATCHED THEN INSERT ({insert_columns}) VALUES ({source_columns})"
-        )
-        merge_result = cursor.fetchall()
-        inserted_rows = 0
-        if merge_result and cursor.description:
-            result_columns = [str(column[0]).lower() for column in cursor.description]
-            inserted_index = next(
-                (index for index, name in enumerate(result_columns) if "inserted" in name),
-                None,
-            )
-            if inserted_index is not None:
-                inserted_rows = int(merge_result[0][inserted_index])
-
-        cursor.execute(
+        merge_sql = build_merge_statement(target, temp_table, header)
+        audit_sql = (
             f"MERGE INTO {audit_target} a USING ("
             "SELECT %s AS \"FILE_NAME\", %s AS \"FILE_SHA256\", "
             "%s AS \"COLUMN_SIGNATURE\", %s AS \"ROW_COUNT\") s "
@@ -243,18 +275,41 @@ def load_csv(csv_path, database, schema, table, connect_args, force=False):
             "WHEN NOT MATCHED THEN INSERT "
             "(\"FILE_NAME\", \"FILE_SHA256\", \"COLUMN_SIGNATURE\", \"ROW_COUNT\", \"UPDATED_AT\") "
             "VALUES (s.\"FILE_NAME\", s.\"FILE_SHA256\", s.\"COLUMN_SIGNATURE\", "
-            "s.\"ROW_COUNT\", CURRENT_TIMESTAMP())",
-            (csv_path.name, file_signature, column_signature, validated_rows),
+            "s.\"ROW_COUNT\", CURRENT_TIMESTAMP())"
         )
+        merge_result, merge_description = merge_and_update_audit(
+            connection,
+            cursor,
+            audit_sql,
+            (csv_path.name, file_signature, column_signature, validated_rows),
+            merge_sql,
+        )
+        inserted_rows = 0
+        if merge_result and merge_description:
+            result_columns = [str(column[0]).lower() for column in merge_description]
+            inserted_index = next(
+                (index for index, name in enumerate(result_columns) if "inserted" in name),
+                None,
+            )
+            if inserted_index is not None:
+                inserted_rows = int(merge_result[0][inserted_index])
+
         print(
             f"{csv_path.name}: {inserted_rows:,} new rows inserted; "
             f"{validated_rows - inserted_rows:,} rows not inserted because they were "
             "already present or duplicated within the file.",
             flush=True,
         )
-        cursor.close()
     finally:
-        connection.close()
+        if cursor is not None:
+            try:
+                cursor.close()
+            except Exception:
+                pass
+        try:
+            connection.close()
+        except Exception:
+            pass
 
 
 def main():
@@ -317,5 +372,10 @@ if __name__ == "__main__":
                 secret = os.environ.get(secret_name)
                 if secret:
                     message = message.replace(secret, "<redacted>")
+            notes = getattr(error, "__notes__", ())
+            for note in notes:
+                if secret:
+                    note = note.replace(secret, "<redacted>")
+                message += f"; {note}"
             print(f"Snowflake load failed ({type(error).__name__}): {message}", file=sys.stderr)
         sys.exit(1)
