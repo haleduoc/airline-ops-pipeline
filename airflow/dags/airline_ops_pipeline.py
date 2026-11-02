@@ -3,6 +3,7 @@ from pathlib import Path
 
 from airflow.sdk import DAG, get_current_context, task
 from airflow.providers.standard.operators.bash import BashOperator
+from loader_runner import run_loader
 
 
 with DAG(
@@ -28,17 +29,21 @@ with DAG(
             "yes",
         }
         return [
-            f'python3 -u /workspace/ingestion/load_data.py --csv-path "{path}"'
-            f'{" --force" if force_reload else ""}'
+            {"csv_path": str(path), "force_reload": force_reload}
             for path in csv_paths
         ]
 
     csv_partitions = discover_csvs()
 
-    ingest_bts = BashOperator.partial(
+    @task(
         task_id="ingest_bts",
+        pool="airline_ops_snowflake_write",
         execution_timeout=timedelta(minutes=30),
-    ).expand(bash_command=csv_partitions)
+    )
+    def ingest_csv(csv_path, force_reload):
+        run_loader(csv_path, force_reload)
+
+    ingest_bts = ingest_csv.expand_kwargs(csv_partitions)
 
     dbt_run_l2 = BashOperator(
         task_id="dbt_run_l2",
